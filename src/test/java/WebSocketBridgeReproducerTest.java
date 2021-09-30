@@ -102,6 +102,7 @@ public class WebSocketBridgeReproducerTest extends VertxTestBase {
         // initial connection - double registration and unregistration
         HttpClient client = vertx.createHttpClient();
         client.webSocket(PORT, LOCALHOST, WEBSOCKET_PATH, onSuccess(ws -> {
+            // those actions will cause leak - a consumer still registered
             ws.writeTextMessage(EVENTBUS_REGISTER_MESSAGE);
             delay();
             ws.writeTextMessage(EVENTBUS_REGISTER_MESSAGE);
@@ -110,7 +111,6 @@ public class WebSocketBridgeReproducerTest extends VertxTestBase {
             delay();
             // this does not do anything actually
             ws.writeTextMessage(EVENTBUS_UNREGISTER_MESSAGE);
-            // those actions will cause leak - a consumer still registered
             ws.handler(buff -> {
                 log.info("websocket client 1 received raw message: " + buff.toString("UTF-8"));
                 ws.close();
@@ -135,7 +135,7 @@ public class WebSocketBridgeReproducerTest extends VertxTestBase {
                 } else {
                     ++counter[0];
                 }
-                // new number in message should be always be increased by 1
+                // new number in message should always be increased by 1
                 assertEquals("Message was lost, next id not matching.", counter[0], number);
             });
 
