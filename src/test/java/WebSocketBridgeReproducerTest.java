@@ -110,6 +110,7 @@ public class WebSocketBridgeReproducerTest extends VertxTestBase {
             delay();
             // this does not do anything actually
             ws.writeTextMessage(EVENTBUS_UNREGISTER_MESSAGE);
+            // those actions will cause leak - a consumer still registered
             ws.handler(buff -> {
                 log.info("websocket client 1 received raw message: " + buff.toString("UTF-8"));
                 ws.close();
@@ -121,6 +122,7 @@ public class WebSocketBridgeReproducerTest extends VertxTestBase {
         HttpClient client2 = vertx.createHttpClient();
         client2.webSocket(PORT, LOCALHOST, WEBSOCKET_PATH, onSuccess(ws -> {
             ws.writeTextMessage(EVENTBUS_REGISTER_MESSAGE);
+            // this client will only receive every other message
             delay();
             ws.handler(buff -> {
                 log.debug("websocket client 2 received raw message: " + buff.toString("UTF-8"));
