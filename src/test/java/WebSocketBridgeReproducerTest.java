@@ -42,11 +42,11 @@ public class WebSocketBridgeReproducerTest extends VertxTestBase {
     Vertx vertx;
     HttpServer server;
 
-    private final CountDownLatch countDownLatch = new CountDownLatch(1);
+    private CountDownLatch countDownLatch;
 
     @Before
     public void before(TestContext context) {
-
+        countDownLatch = new CountDownLatch(1);
         vertx = Vertx.vertx();
 
         vertx.exceptionHandler(context.exceptionHandler());
