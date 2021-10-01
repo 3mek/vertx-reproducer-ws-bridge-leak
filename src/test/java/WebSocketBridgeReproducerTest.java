@@ -42,7 +42,7 @@ public class WebSocketBridgeReproducerTest extends VertxTestBase {
     Vertx vertx;
     HttpServer server;
 
-    private final CountDownLatch countDownLatch = new CountDownLatch(2);
+    private final CountDownLatch countDownLatch = new CountDownLatch(1);
 
     @Before
     public void before(TestContext context) {
@@ -109,12 +109,10 @@ public class WebSocketBridgeReproducerTest extends VertxTestBase {
             // those actions will cause leak - a consumer still registered
             ws.writeTextMessage(EVENTBUS_REGISTER_MESSAGE);
             ws.writeTextMessage(EVENTBUS_REGISTER_MESSAGE);
-            countDownLatch.countDown();
-            ws.writeTextMessage(EVENTBUS_UNREGISTER_MESSAGE);
-            // this does not do anything actually
-            ws.writeTextMessage(EVENTBUS_UNREGISTER_MESSAGE);
             ws.handler(buff -> {
                 log.info("websocket client 1 received raw message: " + buff.toString("UTF-8"));
+                ws.writeTextMessage(EVENTBUS_UNREGISTER_MESSAGE);
+                ws.writeTextMessage(EVENTBUS_UNREGISTER_MESSAGE); // this does not do anything actually
                 ws.close();
                 countDownLatch.countDown();
             });
