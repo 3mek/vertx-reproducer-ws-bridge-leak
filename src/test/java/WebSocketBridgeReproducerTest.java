@@ -20,6 +20,8 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+import java.util.concurrent.CountDownLatch;
+
 import static org.hamcrest.CoreMatchers.is;
 
 /**
@@ -40,6 +42,8 @@ public class WebSocketBridgeReproducerTest extends VertxTestBase {
     Vertx vertx;
     HttpServer server;
 
+    private final CountDownLatch countDownLatch = new CountDownLatch(2);
+
     @Before
     public void before(TestContext context) {
 
@@ -58,7 +62,7 @@ public class WebSocketBridgeReproducerTest extends VertxTestBase {
         server.requestHandler(router);
         server.listen(PORT, context.asyncAssertSuccess());
 
-        vertx.setPeriodic(1000, id -> {
+        vertx.setPeriodic(100, id -> {
             log.info("server sending number: " + ++counter);
             vertx.eventBus().send(EVENTBUS_ADDRESS, counter);
         });
@@ -98,32 +102,31 @@ public class WebSocketBridgeReproducerTest extends VertxTestBase {
     }
 
     @Test
-    public void testEventBusBridgeLeakingConsumers(TestContext context) {
+    public void testEventBusBridgeLeakingConsumers(TestContext context) throws InterruptedException {
         // initial connection - double registration and unregistration
         HttpClient client = vertx.createHttpClient();
         client.webSocket(PORT, LOCALHOST, WEBSOCKET_PATH, onSuccess(ws -> {
             // those actions will cause leak - a consumer still registered
             ws.writeTextMessage(EVENTBUS_REGISTER_MESSAGE);
-            delay();
             ws.writeTextMessage(EVENTBUS_REGISTER_MESSAGE);
-            delay();
+            countDownLatch.countDown();
             ws.writeTextMessage(EVENTBUS_UNREGISTER_MESSAGE);
-            delay();
             // this does not do anything actually
             ws.writeTextMessage(EVENTBUS_UNREGISTER_MESSAGE);
             ws.handler(buff -> {
                 log.info("websocket client 1 received raw message: " + buff.toString("UTF-8"));
                 ws.close();
+                countDownLatch.countDown();
             });
-
         }));
+
+        countDownLatch.await();
 
         final int[] counter = {-1};
         HttpClient client2 = vertx.createHttpClient();
         client2.webSocket(PORT, LOCALHOST, WEBSOCKET_PATH, onSuccess(ws -> {
             ws.writeTextMessage(EVENTBUS_REGISTER_MESSAGE);
             // this client will only receive every other message
-            delay();
             ws.handler(buff -> {
                 log.debug("websocket client 2 received raw message: " + buff.toString("UTF-8"));
                 JsonObject jsonObject = new JsonObject(buff.toString("UTF-8"));
@@ -143,15 +146,6 @@ public class WebSocketBridgeReproducerTest extends VertxTestBase {
 
         await();
     }
-
-    private void delay() {
-        try {
-            Thread.sleep(300);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-    }
-
 
     private Router createEventBusRouter() {
         PermittedOptions permittedOptions = new PermittedOptions()
